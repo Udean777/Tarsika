@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Hushkeep"
+rootProject.name = "Tarsika"
 include(":app")

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Hushkeep" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Tarsika.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/tarsika_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/tarsika_splash_native_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.Tarsika</item>
+    </style>
+
+    <style name="Theme.Tarsika" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
