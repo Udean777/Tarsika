@@ -65,6 +65,7 @@ fun MainNavGraph(viewModelFactories: MainViewModelFactories) {
                 movePhotos = trashViewModel::movePhotos,
                 restore = trashViewModel::restore,
                 deleteForever = trashViewModel::deleteForever,
+                emptyLocalTrash = trashViewModel::emptyLocalTrash,
             )
         }
     val vaultActions =

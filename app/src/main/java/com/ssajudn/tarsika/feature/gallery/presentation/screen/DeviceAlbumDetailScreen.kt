@@ -187,9 +187,7 @@ fun DeviceAlbumDetailScreen(
                         )
                         (
                             if (isUserAlbum) {
-                                stringResource(
-                                    R.string.user_album_local_note,
-                                )
+                                userAlbum?.relativePath
                             } else {
                                 album?.relativePath
                             }

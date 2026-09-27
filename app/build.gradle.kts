@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.work.runtime.ktx)
     ksp(libs.androidx.room.compiler)
     add(ktlintSourceRuntime.name, "com.pinterest.ktlint:ktlint-cli:1.0.1")
 }

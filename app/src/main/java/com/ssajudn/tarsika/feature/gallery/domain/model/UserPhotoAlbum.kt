@@ -5,4 +5,5 @@ data class UserPhotoAlbum(
     val name: String,
     val createdAtMillis: Long,
     val photoKeys: Set<String>,
+    val relativePath: String = "Pictures/Tarsika/",
 )

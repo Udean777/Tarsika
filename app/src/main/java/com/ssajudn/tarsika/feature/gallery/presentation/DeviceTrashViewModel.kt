@@ -9,6 +9,8 @@ import com.ssajudn.tarsika.feature.gallery.domain.model.TrashMoveSummary
 import com.ssajudn.tarsika.feature.gallery.domain.repository.LocalTrashRepository
 import com.ssajudn.tarsika.feature.gallery.domain.repository.SystemTrashRepository
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.MoveDevicePhotosToLocalTrashUseCase
+import com.ssajudn.tarsika.feature.gallery.domain.usecase.EmptyLocalTrashUseCase
+import com.ssajudn.tarsika.feature.gallery.domain.usecase.PurgeExpiredLocalTrashUseCase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +28,8 @@ class DeviceTrashViewModel(
     private val localTrash: LocalTrashRepository,
     private val systemTrash: SystemTrashRepository,
     private val moveToTrash: MoveDevicePhotosToLocalTrashUseCase,
+    private val emptyLocalTrashUseCase: EmptyLocalTrashUseCase,
+    private val purgeExpiredLocalTrash: PurgeExpiredLocalTrashUseCase,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(DeviceTrashState())
     val state: StateFlow<DeviceTrashState> = mutableState.asStateFlow()
@@ -33,6 +37,13 @@ class DeviceTrashViewModel(
 
     init {
         viewModelScope.launch {
+            try {
+                purgeExpiredLocalTrash()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                effects.reportFailure(error)
+            }
             localTrash.localEntries.collect { items ->
                 mutableState.value = mutableState.value.copy(localItems = items)
             }
@@ -77,6 +88,8 @@ class DeviceTrashViewModel(
     ) = perform { localTrash.restore(item, destinationUri) }
 
     fun deleteForever(id: String) = perform { localTrash.deleteForever(id) }
+
+    fun emptyLocalTrash() = perform { emptyLocalTrashUseCase() }
 
     private fun perform(operation: suspend () -> Unit) {
         viewModelScope.launch {

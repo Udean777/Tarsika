@@ -17,6 +17,8 @@ import com.ssajudn.tarsika.feature.gallery.domain.usecase.CreateUserPhotoAlbumUs
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.DeleteSelectedDevicePhotosUseCase
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.ImportPhotoIntoVaultUseCase
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.MoveDevicePhotosToLocalTrashUseCase
+import com.ssajudn.tarsika.feature.gallery.domain.usecase.EmptyLocalTrashUseCase
+import com.ssajudn.tarsika.feature.gallery.domain.usecase.PurgeExpiredLocalTrashUseCase
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.MovePhotosBetweenUserAlbumsUseCase
 import com.ssajudn.tarsika.feature.gallery.domain.usecase.PrepareEditedPhotoCopyUseCase
 import com.ssajudn.tarsika.feature.gallery.presentation.DeviceGalleryViewModel
@@ -60,7 +62,13 @@ class AppContainer(context: Context) {
                 },
             trash =
                 GalleryViewModelFactory(DeviceTrashViewModel::class.java) {
-                    DeviceTrashViewModel(localTrash, systemTrash, MoveDevicePhotosToLocalTrashUseCase(localTrash))
+                    DeviceTrashViewModel(
+                        localTrash,
+                        systemTrash,
+                        MoveDevicePhotosToLocalTrashUseCase(localTrash),
+                        EmptyLocalTrashUseCase(localTrash),
+                        PurgeExpiredLocalTrashUseCase(localTrash),
+                    )
                 },
             vault =
                 GalleryViewModelFactory(HiddenAlbumViewModel::class.java) {

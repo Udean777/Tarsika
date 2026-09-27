@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.core.net.toUri
 import com.ssajudn.tarsika.feature.gallery.domain.model.LocalTrashPhoto
 import com.ssajudn.tarsika.feature.gallery.domain.repository.LocalTrashRepository
+import com.ssajudn.tarsika.feature.gallery.domain.repository.LocalTrashMaintenanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -16,7 +17,7 @@ class RoomLocalTrashRepository(
     private val resolver: ContentResolver,
     private val dao: LocalTrashDao,
     private val directory: File,
-) : LocalTrashRepository {
+) : LocalTrashRepository, LocalTrashMaintenanceRepository {
     override val localEntries: Flow<List<LocalTrashPhoto>> =
         dao.observeAll().map { rows ->
             rows.map {
@@ -125,4 +126,27 @@ class RoomLocalTrashRepository(
             }
             Unit
         }
+
+    override suspend fun deleteAllForever() =
+        withContext(Dispatchers.IO) {
+            val entries = dao.findAll()
+            deleteBackupFiles(entries)
+            dao.deleteAll()
+            Unit
+        }
+
+    override suspend fun deleteExpiredBefore(trashedBeforeMillis: Long) =
+        withContext(Dispatchers.IO) {
+            val entries = dao.findExpired(trashedBeforeMillis)
+            deleteBackupFiles(entries)
+            dao.deleteExpired(trashedBeforeMillis)
+            Unit
+        }
+
+    private fun deleteBackupFiles(entries: List<LocalTrashEntity>) {
+        entries.forEach { entry ->
+            val backup = File(directory, entry.backupFileName)
+            check(!backup.exists() || backup.delete()) { "Unable to permanently remove a trash item." }
+        }
+    }
 }

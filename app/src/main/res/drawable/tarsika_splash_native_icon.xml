@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:insetLeft="56dp"
-    android:insetTop="56dp"
-    android:insetRight="56dp"
-    android:insetBottom="56dp">
+    android:insetLeft="54dp"
+    android:insetTop="54dp"
+    android:insetRight="54dp"
+    android:insetBottom="54dp">
     <bitmap
         android:src="@drawable/tarsika_splash_icon"
         android:gravity="fill" />

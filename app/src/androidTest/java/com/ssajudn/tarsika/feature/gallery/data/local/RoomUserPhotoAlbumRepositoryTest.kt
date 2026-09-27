@@ -32,13 +32,12 @@ class RoomUserPhotoAlbumRepositoryTest {
     @Test
     fun albumAndMembershipRowsMapToDomainModel() =
         runBlocking {
-            repository.create("  Family  ")
-            val created = repository.albums.first().single()
-            repository.addPhotos(created.id, setOf("external:1", "external:2"))
+            repository.create("  Family  ", "Pictures/Family", setOf("external:1", "external:2"))
 
             val albumWithPhotos = repository.albums.first().single()
 
             assertEquals("Family", albumWithPhotos.name)
+            assertEquals("Pictures/Family/", albumWithPhotos.relativePath)
             assertEquals(setOf("external:1", "external:2"), albumWithPhotos.photoKeys)
         }
 }

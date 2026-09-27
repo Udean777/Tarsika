@@ -77,6 +77,8 @@ internal fun MainNavHost(
                 onRefresh = galleryActions.refresh,
                 photoAccess = photoAccess,
                 onOpenAlbum = { albumId -> navController.navigate("${AppDestination.AlbumDetail.route}/$albumId") },
+                onMoveToLocalTrash = trashActions.movePhotos,
+                onDeletePhotos = galleryActions.deleteSelectedPhotos,
                 onOpenTrash = { navController.navigate(AppDestination.Trash.route) },
                 onOpenVault = { navController.navigate(AppDestination.HiddenAlbum.route) },
             )

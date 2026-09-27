@@ -19,7 +19,7 @@ data class GalleryUiActions(
 )
 
 data class UserAlbumUiActions(
-    val create: (String) -> Unit,
+    val create: (String, String, Set<String>) -> Unit,
     val rename: (String, String) -> Unit,
     val delete: (String) -> Unit,
     val addPhotos: (String, Set<String>) -> Unit,
@@ -32,6 +32,7 @@ data class TrashUiActions(
     val movePhotos: suspend (List<DevicePhoto>, suspend (String) -> Boolean) -> TrashMoveSummary,
     val restore: (LocalTrashPhoto, String) -> Unit,
     val deleteForever: (String) -> Unit,
+    val emptyLocalTrash: () -> Unit,
 )
 
 data class HiddenAlbumUiActions(

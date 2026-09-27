@@ -23,4 +23,5 @@ interface LocalTrashRepository {
     suspend fun deleteForever(entry: LocalTrashPhoto)
 
     suspend fun deleteForever(id: String)
+
 }

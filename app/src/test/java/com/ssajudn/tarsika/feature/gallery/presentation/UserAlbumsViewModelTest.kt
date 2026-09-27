@@ -35,7 +35,7 @@ class UserAlbumsViewModelTest {
                     MovePhotosBetweenUserAlbumsUseCase(repository),
                 )
 
-            viewModel.createUserAlbum("  Weekend  ")
+            viewModel.createUserAlbum("  Weekend  ", "Pictures/Trips", setOf("external:1"))
             advanceUntilIdle()
 
             assertEquals(listOf("Weekend"), repository.createdNames)
@@ -45,8 +45,13 @@ class UserAlbumsViewModelTest {
         override val albums: Flow<List<UserPhotoAlbum>> = MutableStateFlow(emptyList())
         val createdNames = mutableListOf<String>()
 
-        override suspend fun create(name: String) {
+        override suspend fun create(
+            name: String,
+            relativePath: String,
+            photoKeys: Set<String>,
+        ) {
             createdNames += name
+            require(photoKeys.isNotEmpty())
         }
 
         override suspend fun rename(

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Insert
@@ -21,6 +22,7 @@ data class UserAlbumEntity(
     @PrimaryKey val id: String,
     val name: String,
     val createdAtMillis: Long,
+    @ColumnInfo(defaultValue = "'Pictures/Tarsika/'") val relativePath: String = "Pictures/Tarsika/",
 )
 
 @Entity(
@@ -71,6 +73,18 @@ interface UserAlbumDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAlbum(album: UserAlbumEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAlbumPhotos(memberships: List<UserAlbumPhotoEntity>)
+
+    @androidx.room.Transaction
+    suspend fun insertAlbumWithPhotos(
+        album: UserAlbumEntity,
+        memberships: List<UserAlbumPhotoEntity>,
+    ) {
+        insertAlbum(album)
+        insertAlbumPhotos(memberships)
+    }
+
     @Query("UPDATE user_albums SET name = :name WHERE id = :id")
     suspend fun renameAlbum(
         id: String,
@@ -113,13 +127,25 @@ interface LocalTrashDao {
     @Query("SELECT * FROM local_trash WHERE id = :id LIMIT 1")
     suspend fun findById(id: String): LocalTrashEntity?
 
+    @Query("SELECT * FROM local_trash")
+    suspend fun findAll(): List<LocalTrashEntity>
+
+    @Query("SELECT * FROM local_trash WHERE trashedAtMillis <= :trashedBeforeMillis")
+    suspend fun findExpired(trashedBeforeMillis: Long): List<LocalTrashEntity>
+
     @Query("DELETE FROM local_trash WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM local_trash")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM local_trash WHERE trashedAtMillis <= :trashedBeforeMillis")
+    suspend fun deleteExpired(trashedBeforeMillis: Long)
 }
 
 @Database(
     entities = [UserAlbumEntity::class, UserAlbumPhotoEntity::class, VaultPhotoEntity::class, LocalTrashEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class UserAlbumDatabase : RoomDatabase() {
@@ -140,7 +166,7 @@ abstract class UserAlbumDatabase : RoomDatabase() {
                     UserAlbumDatabase::class.java,
                     "user_photo_albums.db",
                 )
-                    .addMigrations(MIGRATION_1_2).build().also { instance = it }
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
 
         private val MIGRATION_1_2 =
@@ -156,6 +182,15 @@ abstract class UserAlbumDatabase : RoomDatabase() {
                             "(`id` TEXT NOT NULL, `originalUri` TEXT NOT NULL, `displayName` TEXT NOT NULL, " +
                             "`mimeType` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `trashedAtMillis` INTEGER NOT NULL, " +
                             "`backupFileName` TEXT NOT NULL, PRIMARY KEY(`id`))",
+                    )
+                }
+            }
+
+        private val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "ALTER TABLE `user_albums` ADD COLUMN `relativePath` TEXT NOT NULL DEFAULT 'Pictures/Tarsika/'",
                     )
                 }
             }

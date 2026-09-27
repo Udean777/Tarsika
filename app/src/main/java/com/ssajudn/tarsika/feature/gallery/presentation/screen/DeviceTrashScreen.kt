@@ -25,7 +25,9 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -53,7 +56,11 @@ import com.ssajudn.tarsika.R
 import com.ssajudn.tarsika.feature.gallery.domain.DevicePhotoDateFormatter
 import com.ssajudn.tarsika.feature.gallery.domain.model.LocalTrashPhoto
 import com.ssajudn.tarsika.feature.gallery.domain.model.SystemTrashPhoto
+import com.ssajudn.tarsika.feature.gallery.domain.model.TrashRetentionPolicy
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
 
 @Composable
 internal fun DeviceTrashScreen(
@@ -69,6 +76,8 @@ internal fun DeviceTrashScreen(
     var localToRestore by remember { mutableStateOf<LocalTrashPhoto?>(null) }
     var localToDelete by remember { mutableStateOf<LocalTrashPhoto?>(null) }
     var selectedItem by remember { mutableStateOf<TrashGridItem?>(null) }
+    var confirmingEmpty by remember { mutableStateOf(false) }
+    var platformRequestContinuation by remember { mutableStateOf<Continuation<Boolean>?>(null) }
     val queryError = trashState.platformLoadFailed
     val gridItems = mutableListOf<TrashGridItem>()
     for (item in platformItems) {
@@ -96,8 +105,11 @@ internal fun DeviceTrashScreen(
                 name = item.displayName,
                 detail =
                     stringResource(
-                        R.string.trash_local_since,
+                        R.string.trash_local_since_and_expiry,
                         DevicePhotoDateFormatter.photoTimestamp(java.time.Instant.ofEpochMilli(item.trashedAtMillis)),
+                        DevicePhotoDateFormatter.photoTimestamp(
+                            java.time.Instant.ofEpochMilli(item.trashedAtMillis + TrashRetentionPolicy.LOCAL_RETENTION_MILLIS),
+                        ),
                     ),
                 size = Formatter.formatFileSize(context, item.sizeBytes),
                 localPhoto = item,
@@ -106,6 +118,8 @@ internal fun DeviceTrashScreen(
     LaunchedEffect(refreshToken) { actions.refreshPlatform() }
     val platformLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            platformRequestContinuation?.resume(result.resultCode == Activity.RESULT_OK)
+            platformRequestContinuation = null
             if (result.resultCode == Activity.RESULT_OK) {
                 refreshToken++
                 actions.refreshPlatform()
@@ -113,6 +127,14 @@ internal fun DeviceTrashScreen(
             platformToDelete = null
         }
     val scope = rememberCoroutineScope()
+    suspend fun requestPlatformOperation(intentSender: android.content.IntentSender): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            platformRequestContinuation = continuation
+            continuation.invokeOnCancellation {
+                if (platformRequestContinuation === continuation) platformRequestContinuation = null
+            }
+            platformLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+        }
     val createDocument =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/*")) { destination ->
             val entry = localToRestore
@@ -132,10 +154,16 @@ internal fun DeviceTrashScreen(
         ) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) }
             Text(stringResource(R.string.trash_title), style = MaterialTheme.typography.titleLarge)
+            if (gridItems.isNotEmpty() && !trashState.isLoadingPlatform) {
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                IconButton(onClick = { confirmingEmpty = true }) {
+                    Icon(Icons.Default.DeleteSweep, contentDescription = stringResource(R.string.empty_trash))
+                }
+            }
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             Text(
-                stringResource(R.string.legacy_trash_note),
+                stringResource(R.string.legacy_trash_retention_note),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
@@ -148,7 +176,11 @@ internal fun DeviceTrashScreen(
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        if (gridItems.isEmpty() && !queryError) {
+        if (gridItems.isEmpty() && trashState.isLoadingPlatform) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (gridItems.isEmpty() && !queryError) {
             GalleryMessage(
                 title = stringResource(R.string.trash_empty_title),
                 description = stringResource(R.string.trash_empty_description),
@@ -196,6 +228,35 @@ internal fun DeviceTrashScreen(
             }
         }
     }
+    if (confirmingEmpty) {
+        AlertDialog(
+            onDismissRequest = { confirmingEmpty = false },
+            title = { Text(stringResource(R.string.empty_trash)) },
+            text = { Text(stringResource(R.string.empty_trash_confirmation, gridItems.size)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingEmpty = false
+                    scope.launch {
+                        val systemUris = platformItems.map { it.uri.toUri() }
+                        var approved = true
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            for (batch in systemUris.chunked(MAX_DELETE_REQUEST_URIS)) {
+                                if (!requestPlatformOperation(createPlatformDeleteRequest(context.contentResolver, batch))) {
+                                    approved = false
+                                    break
+                                }
+                            }
+                        }
+                        if (approved) {
+                            actions.emptyLocalTrash()
+                            refreshToken++
+                        }
+                    }
+                }) { Text(stringResource(R.string.delete_action), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmingEmpty = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     selectedItem?.let { item ->
         AlertDialog(
             onDismissRequest = { selectedItem = null },
@@ -238,7 +299,7 @@ internal fun DeviceTrashScreen(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         platformLauncher.launch(
                             IntentSenderRequest.Builder(
-                                createPlatformDeleteRequest(context.contentResolver, item.uri.toUri()),
+                                createPlatformDeleteRequest(context.contentResolver, listOf(item.uri.toUri())),
                             ).build(),
                         )
                     }
@@ -272,8 +333,8 @@ private fun createPlatformTrashRequest(
 @RequiresApi(Build.VERSION_CODES.R)
 private fun createPlatformDeleteRequest(
     resolver: android.content.ContentResolver,
-    uri: android.net.Uri,
-): android.content.IntentSender = MediaStore.createDeleteRequest(resolver, listOf(uri)).intentSender
+    uris: List<android.net.Uri>,
+): android.content.IntentSender = MediaStore.createDeleteRequest(resolver, uris).intentSender
 
 private data class TrashGridItem(
     val key: String,
@@ -284,3 +345,5 @@ private data class TrashGridItem(
     val platformPhoto: SystemTrashPhoto? = null,
     val localPhoto: LocalTrashPhoto? = null,
 )
+
+private const val MAX_DELETE_REQUEST_URIS = 2_000

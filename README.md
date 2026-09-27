@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="app/src/main/res/drawable-nodpi/tarsika_playstore_512.png" alt="Ikon aplikasi Tarsika" width="160" />
+
 # Tarsika
 
 Galeri foto Android yang bekerja langsung di perangkat.

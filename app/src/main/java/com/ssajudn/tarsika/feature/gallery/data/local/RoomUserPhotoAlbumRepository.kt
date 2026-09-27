@@ -17,14 +17,27 @@ class RoomUserPhotoAlbumRepository(private val dao: UserAlbumDao) : UserPhotoAlb
                     memberships.filter {
                         it.albumId == album.id
                     }.mapTo(mutableSetOf()) { it.photoKey },
+                    album.relativePath,
                 )
             }
         }
 
-    override suspend fun create(name: String) {
+    override suspend fun create(
+        name: String,
+        relativePath: String,
+        photoKeys: Set<String>,
+    ) {
         val cleanName = name.trim()
+        val cleanPath = relativePath.trim().trim('/')
         require(cleanName.isNotEmpty())
-        dao.insertAlbum(UserAlbumEntity(UUID.randomUUID().toString(), cleanName, System.currentTimeMillis()))
+        require(cleanPath.isNotEmpty())
+        require(photoKeys.isNotEmpty())
+        val albumId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        dao.insertAlbumWithPhotos(
+            UserAlbumEntity(albumId, cleanName, now, "$cleanPath/"),
+            photoKeys.map { UserAlbumPhotoEntity(albumId, it, now) },
+        )
     }
 
     override suspend fun rename(

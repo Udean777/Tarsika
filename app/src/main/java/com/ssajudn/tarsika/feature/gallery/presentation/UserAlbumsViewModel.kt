@@ -18,7 +18,11 @@ class UserAlbumsViewModel(
     val albums = repository.albums.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val effects = GalleryUiEffects()
 
-    fun createUserAlbum(name: String) = perform { createAlbum(name) }
+    fun createUserAlbum(
+        name: String,
+        parentRelativePath: String,
+        photoKeys: Set<String>,
+    ) = perform { createAlbum(name, parentRelativePath, photoKeys) }
 
     fun renameUserAlbum(
         id: String,
